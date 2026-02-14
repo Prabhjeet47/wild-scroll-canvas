@@ -1,11 +1,15 @@
 import { Leaf } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Home = () => {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
       <div className="text-center max-w-2xl">
         <div className="flex items-center justify-center gap-3 mb-6">
           <Leaf className="w-8 h-8 text-primary" />

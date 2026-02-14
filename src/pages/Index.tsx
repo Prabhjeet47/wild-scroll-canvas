@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Leaf, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import ScrollReveal from "@/components/ScrollReveal";
 import HorizontalScrollSection from "@/components/HorizontalScrollSection";
 import wildlifeHero from "@/assets/wildlife-hero.jpg";
@@ -10,6 +11,11 @@ const Index = () => {
 
   return (
     <div className="relative">
+      {/* Theme Toggle - Fixed Position */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Fixed background */}
       <div
         className="fixed inset-0 z-0"
