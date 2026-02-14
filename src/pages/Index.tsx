@@ -27,6 +27,7 @@ const Index = () => {
       <div className="relative z-10">
         {/* Hero Section */}
         <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+          <div className="bg-card/30 backdrop-blur-xl border border-white/10 rounded-2xl p-10 md:p-16 shadow-2xl shadow-black/20">
           <div className="animate-fade-up flex items-center gap-3 mb-8">
             <Leaf className="w-10 h-10 text-primary" />
             <span className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
@@ -46,11 +47,12 @@ const Index = () => {
           <div className="animate-fade-up-delay-3 mt-12">
             <ArrowDown className="w-6 h-6 text-muted-foreground animate-bounce" />
           </div>
+          </div>
         </section>
 
         {/* About Section */}
         <section className="min-h-screen flex items-center justify-center px-6 py-24">
-          <div className="max-w-3xl text-center">
+          <div className="max-w-3xl text-center bg-card/30 backdrop-blur-xl border border-white/10 rounded-2xl p-10 md:p-16 shadow-2xl shadow-black/20">
             <ScrollReveal>
               <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
                 Who We <span className="text-accent">Are</span>
@@ -101,7 +103,7 @@ const Index = () => {
         </section>
 
         {/* Footer */}
-        <footer className="py-8 text-center border-t border-border">
+        <footer className="py-8 text-center border-t border-white/10 bg-card/20 backdrop-blur-lg">
           <p className="text-muted-foreground text-sm font-body">
             © 2026 WildGuard. All rights reserved.
           </p>
