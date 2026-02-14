@@ -85,7 +85,7 @@ const HorizontalScrollSection = () => {
           {features.map((feature, i) => (
             <div
               key={feature.title}
-              className="flex-shrink-0 w-[320px] md:w-[380px] rounded-xl bg-card/80 backdrop-blur-sm border border-border p-8 flex flex-col gap-4 group hover:border-primary/40 transition-colors duration-300"
+              className="flex-shrink-0 w-[320px] md:w-[380px] rounded-xl bg-card/40 backdrop-blur-xl border border-white/10 p-8 flex flex-col gap-4 group hover:border-primary/40 hover:bg-card/60 transition-all duration-300 shadow-lg shadow-black/10"
             >
               <div className="w-12 h-12 rounded-lg bg-primary/15 flex items-center justify-center group-hover:bg-primary/25 transition-colors">
                 <feature.icon className="w-6 h-6 text-primary" />
