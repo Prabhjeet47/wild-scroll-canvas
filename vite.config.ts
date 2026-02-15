@@ -8,7 +8,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: '8080-iflydftewgyu79aifa92s-de59bda9.sandbox.novita.ai',
+    allowedHosts: [
+      "8080-iflydftewgyu79aifa92s-de59bda9.sandbox.novita.ai",
+    ],
     hmr: {
       overlay: false,
     },
