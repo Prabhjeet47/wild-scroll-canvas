@@ -1,8 +1,11 @@
-# Welcome to your Lovable project
+# WildGuard - Wildlife Conservation Platform
+
+A beautiful, modern wildlife conservation website with an elegant authentication system.
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID  
+**GitHub**: https://github.com/Prabhjeet47/wild-scroll-canvas
 
 ## How can I edit this code?
 
@@ -50,15 +53,53 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Features
+
+### 🔐 Authentication System
+- **Login/Signup Page** (`/auth`)
+  - Toggle between login and signup modes
+  - Form validation with error handling
+  - Password strength requirements (min 8 characters)
+  - Confirm password matching
+  - Wildlife-themed background with backdrop blur
+  - Responsive design for all screen sizes
+  - Integrated with existing green theme
+  - Nature-inspired quotes
+  - Smooth animations and transitions
+
+### 🎨 Design Theme
+- **Color Palette**: Green nature theme with earthy tones
+  - Primary: `hsl(152, 45%, 38%)` - Forest green
+  - Accent: `hsl(85, 55%, 50%)` - Lime green
+  - Background: Adaptive light/dark mode
+- **Typography**: 
+  - Display: Playfair Display (elegant serif)
+  - Body: Source Sans 3 (clean sans-serif)
+- **Visual Elements**:
+  - Wildlife photography backgrounds
+  - Glass morphism effects
+  - Smooth fade-up animations
+  - Hover effects and transitions
+
+### 🗺️ Pages
+- `/` - Landing page with hero section and horizontal scroll features
+- `/home` - Main application page
+- `/auth` - Login and signup page
+- Theme toggle available on all pages
+- Responsive navigation
+
 ## What technologies are used for this project?
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Vite** - Fast build tool and dev server
+- **TypeScript** - Type-safe JavaScript
+- **React** - UI library with hooks
+- **React Router** - Client-side routing
+- **shadcn-ui** - Beautiful component library
+- **Tailwind CSS** - Utility-first CSS framework
+- **Lucide React** - Icon library
+- **next-themes** - Dark mode support
 
 ## How can I deploy this project?
 
