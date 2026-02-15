@@ -11,8 +11,15 @@ const Index = () => {
 
   return (
     <div className="relative">
-      {/* Theme Toggle - Fixed Position */}
-      <div className="fixed top-6 right-6 z-50">
+      {/* Theme Toggle and Auth Button - Fixed Position */}
+      <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
+        <Button
+          variant="outline"
+          onClick={() => navigate("/auth")}
+          className="border-border bg-card/80 backdrop-blur-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
+        >
+          Sign In
+        </Button>
         <ThemeToggle />
       </div>
 
