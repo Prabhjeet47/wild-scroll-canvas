@@ -238,7 +238,7 @@ const DashboardViews = () => {
           {/* Admin: Create Dashboard */}
           {isAdmin && (
             <Button
-              onClick={() => navigate("/createdashboard")}
+              onClick={() => navigate("/dashboard/create")}
               size="sm"
               className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-body"
             >
