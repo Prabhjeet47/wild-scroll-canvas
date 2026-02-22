@@ -41,40 +41,91 @@ const LogsPreview = ({ log, compact = false }: { log: string; compact?: boolean 
   </div>
 );
 
-const SleepButton = ({ status }: { status: Dashboard["status"] }) => (
-  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
-    <Moon className="w-3.5 h-3.5" />
-    {status === "sleeping" ? "Wake" : "Sleep"}
-  </Button>
-);
+/* ─── Sleep/Wake Status Indicator ─────────────── */
+const SleepWakeIndicator = ({ status }: { status: Dashboard["status"] }) => {
+  if (status === "sleeping") {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-body">
+        <div className="relative flex items-center">
+          <Moon className="w-3.5 h-3.5 text-accent-foreground" />
+          {/* Zzz animation */}
+          <span className="absolute -top-2 -right-3 text-[8px] font-bold text-accent-foreground animate-pulse select-none">
+            z
+          </span>
+          <span className="absolute -top-3.5 -right-1.5 text-[7px] font-bold text-accent-foreground/70 animate-pulse select-none" style={{ animationDelay: "0.3s" }}>
+            z
+          </span>
+          <span className="absolute -top-4.5 -right-0 text-[6px] font-bold text-accent-foreground/40 animate-pulse select-none" style={{ animationDelay: "0.6s" }}>
+            z
+          </span>
+        </div>
+        <span className="ml-1">Sleeping</span>
+      </div>
+    );
+  }
 
-/* ─── Vertical View ────────────────────────────────── */
+  return (
+    <span className="text-xs text-muted-foreground font-body">
+      {status === "active" ? "Awake" : "Offline"}
+    </span>
+  );
+};
+
+/* ─── Clickable Dashboard Card Wrapper ────────── */
+const DashboardCardLink = ({
+  dashboard,
+  children,
+  className = "",
+}: {
+  dashboard: Dashboard;
+  children: React.ReactNode;
+  className?: string;
+}) => {
+  const navigate = useNavigate();
+  const slug = dashboard.name.toLowerCase().replace(/\s+/g, "-");
+
+  return (
+    <div
+      onClick={() => navigate(`/dashboard/${slug}`)}
+      className={`cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] hover:border-primary/50 rounded-lg ${className}`}
+    >
+      {children}
+    </div>
+  );
+};
+
+/* ─── Vertical View ────────────────────────────── */
 const VerticalView = ({ dashboards }: { dashboards: Dashboard[] }) => (
   <div className="space-y-3">
     {dashboards.map((d, i) => (
       <ScrollReveal key={d.id} delay={i * 80}>
-        <Card className="p-4 bg-card border-border hover:border-primary/30 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="font-display font-bold text-foreground text-sm flex-1">{d.name}</h3>
-            <Badge variant="outline" className={`text-[10px] ${statusColors[d.status]}`}>
-              {d.status}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <CameraPreview className="aspect-video" />
-            <div className="flex flex-col gap-2">
-              <MapPreview />
-              <span className="text-[10px] text-muted-foreground">{d.coordinates}</span>
+        <DashboardCardLink dashboard={d}>
+          <Card className="p-4 bg-card border-border transition-colors">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="font-display font-bold text-foreground text-sm flex-1">{d.name}</h3>
+              <Badge variant="outline" className={`text-[10px] ${statusColors[d.status]}`}>
+                {d.status}
+              </Badge>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Latest Log</span>
-              <LogsPreview log={d.lastLog} />
+            {/* 4 items in a row, 2:1 aspect ratio, hover expand/shrink */}
+            <div className="grid grid-cols-4 gap-3 group/row">
+              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100">
+                <CameraPreview className="h-full w-full" />
+              </div>
+              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex flex-col gap-1 justify-center">
+                <MapPreview />
+                <span className="text-[10px] text-muted-foreground truncate">{d.coordinates}</span>
+              </div>
+              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex flex-col gap-1 justify-center">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Latest Log</span>
+                <LogsPreview log={d.lastLog} />
+              </div>
+              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
+                <SleepWakeIndicator status={d.status} />
+              </div>
             </div>
-            <div className="flex items-center justify-end">
-              <SleepButton status={d.status} />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </DashboardCardLink>
       </ScrollReveal>
     ))}
   </div>
@@ -85,24 +136,31 @@ const GridView = ({ dashboards }: { dashboards: Dashboard[] }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
     {dashboards.map((d, i) => (
       <ScrollReveal key={d.id} delay={i * 80}>
-        <Card className="overflow-hidden bg-card border-border hover:border-primary/30 transition-colors group">
-          <CameraPreview className="aspect-[16/10]" />
-          <div className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-display font-bold text-foreground text-sm truncate">{d.name}</h3>
-              <Badge variant="outline" className={`text-[10px] shrink-0 ml-2 ${statusColors[d.status]}`}>
-                {d.status}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 border-t border-border pt-2">
-              <MapPreview compact />
-              <div className="flex-1 min-w-0">
-                <LogsPreview log={d.lastLog} compact />
+        <DashboardCardLink dashboard={d}>
+          <Card className="overflow-hidden bg-card border-border transition-colors group">
+            <CameraPreview className="aspect-[16/10]" />
+            <div className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display font-bold text-foreground text-sm truncate">{d.name}</h3>
+                <Badge variant="outline" className={`text-[10px] shrink-0 ml-2 ${statusColors[d.status]}`}>
+                  {d.status}
+                </Badge>
               </div>
-              <SleepButton status={d.status} />
+              {/* 3 equal-width items with hover expand/shrink */}
+              <div className="grid grid-cols-3 gap-2 border-t border-border pt-2 group/strip">
+                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
+                  <MapPreview compact />
+                </div>
+                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center min-w-0">
+                  <LogsPreview log={d.lastLog} compact />
+                </div>
+                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
+                  <SleepWakeIndicator status={d.status} />
+                </div>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </DashboardCardLink>
       </ScrollReveal>
     ))}
   </div>
@@ -111,8 +169,10 @@ const GridView = ({ dashboards }: { dashboards: Dashboard[] }) => (
 /* ─── Single View ────────────────────────────────── */
 const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
   const [selected, setSelected] = useState(0);
+  const navigate = useNavigate();
   const d = dashboards[selected];
   if (!d) return null;
+  const slug = d.name.toLowerCase().replace(/\s+/g, "-");
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -135,7 +195,10 @@ const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
       </div>
 
       {/* Detail */}
-      <Card className="flex-1 p-0 overflow-hidden bg-card border-border">
+      <Card
+        className="flex-1 p-0 overflow-hidden bg-card border-border cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] hover:border-primary/50"
+        onClick={() => navigate(`/dashboard/${slug}`)}
+      >
         <div className="flex flex-col lg:flex-row">
           <CameraPreview className="aspect-video lg:aspect-auto lg:w-[60%]" />
           <div className="p-5 lg:w-[40%] space-y-4">
@@ -172,7 +235,7 @@ const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
             </div>
 
             <div className="flex gap-2 pt-2 border-t border-border">
-              <SleepButton status={d.status} />
+              <SleepWakeIndicator status={d.status} />
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground">
                 <MoreHorizontal className="w-3.5 h-3.5" />
                 More
@@ -192,7 +255,6 @@ const DashboardViews = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const isAdmin = user?.role === "admin";
 
-  // Normal users with no dashboards
   const dashboards = isAdmin ? MOCK_DASHBOARDS : [];
 
   const viewOptions: { mode: ViewMode; icon: typeof LayoutList; label: string }[] = [
@@ -217,7 +279,6 @@ const DashboardViews = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View switcher */}
           <div className="flex items-center bg-muted rounded-lg p-0.5">
             {viewOptions.map(({ mode, icon: Icon, label }) => (
               <button
@@ -235,7 +296,6 @@ const DashboardViews = () => {
             ))}
           </div>
 
-          {/* Admin: Create Dashboard */}
           {isAdmin && (
             <Button
               onClick={() => navigate("/dashboard/create")}

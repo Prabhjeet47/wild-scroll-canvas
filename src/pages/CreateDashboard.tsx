@@ -66,6 +66,12 @@ interface CameraItem {
   id: string;
   name: string;
   type: "wired" | "wireless";
+  tag?: string;
+  usbSource?: string;
+  ip?: string;
+  port?: string;
+  username?: string;
+  protocol?: string;
 }
 
 type Step = "form" | "map" | "setup";
@@ -80,6 +86,15 @@ const MOCK_USERS = [
   "Casey Monitor",
 ];
 
+const USB_SOURCES = [
+  "/dev/video0",
+  "/dev/video1",
+  "/dev/video2",
+  "/dev/video3",
+  "USB Camera 1",
+  "USB Camera 2",
+];
+
 /* ─── Map Pin Animation ─────────────────────── */
 const MapPinAnimation = ({ onComplete }: { onComplete: () => void }) => {
   useEffect(() => {
@@ -90,7 +105,6 @@ const MapPinAnimation = ({ onComplete }: { onComplete: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-6">
       <div className="relative w-40 h-40">
-        {/* Fake map grid */}
         <div className="absolute inset-0 rounded-xl bg-muted/50 border border-border overflow-hidden">
           <div className="absolute inset-0 grid grid-cols-4 grid-rows-4">
             {Array.from({ length: 16 }).map((_, i) => (
@@ -98,11 +112,9 @@ const MapPinAnimation = ({ onComplete }: { onComplete: () => void }) => {
             ))}
           </div>
         </div>
-        {/* Animated pin dropping */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 animate-bounce">
           <MapPin className="w-8 h-8 text-primary drop-shadow-lg" />
         </div>
-        {/* Ripple */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-2 w-6 h-2 bg-primary/20 rounded-full animate-pulse" />
       </div>
       <div className="text-center space-y-1">
@@ -140,21 +152,17 @@ const InteractiveMap = ({
       className="relative w-full aspect-[16/9] bg-muted rounded-xl border-2 border-dashed border-border cursor-crosshair overflow-hidden group"
       onClick={handleClick}
     >
-      {/* Grid overlay */}
       <div className="absolute inset-0 grid grid-cols-8 grid-rows-5">
         {Array.from({ length: 40 }).map((_, i) => (
           <div key={i} className="border border-border/20" />
         ))}
       </div>
-      {/* Landmass shapes */}
       <div className="absolute top-[15%] left-[20%] w-[25%] h-[30%] bg-primary/10 rounded-[40%]" />
       <div className="absolute top-[25%] left-[55%] w-[20%] h-[35%] bg-primary/10 rounded-[40%]" />
       <div className="absolute bottom-[15%] left-[35%] w-[15%] h-[20%] bg-primary/10 rounded-[40%]" />
-      {/* Crosshair guide on hover */}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <div className="text-xs text-muted-foreground font-body bg-card/80 px-2 py-1 rounded">Click to pin</div>
       </div>
-      {/* Pin */}
       {pin && (
         <div
           className="absolute -translate-x-1/2 -translate-y-full animate-fade-in"
@@ -175,11 +183,11 @@ const InteractiveMap = ({
 const CameraTypeModal = ({
   open,
   onClose,
-  onSelect,
+  onSelectType,
 }: {
   open: boolean;
   onClose: () => void;
-  onSelect: (type: "wired" | "wireless") => void;
+  onSelectType: (type: "wired" | "wireless") => void;
 }) => (
   <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
     <DialogContent className="sm:max-w-md">
@@ -191,17 +199,17 @@ const CameraTypeModal = ({
       </DialogHeader>
       <div className="grid grid-cols-2 gap-4 py-4">
         <button
-          onClick={() => onSelect("wired")}
+          onClick={() => onSelectType("wired")}
           className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group"
         >
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
             <Cable className="w-6 h-6 text-primary" />
           </div>
           <span className="text-sm font-body font-semibold text-foreground">Wired</span>
-          <span className="text-xs text-muted-foreground font-body">Ethernet / PoE</span>
+          <span className="text-xs text-muted-foreground font-body">USB / PoE</span>
         </button>
         <button
-          onClick={() => onSelect("wireless")}
+          onClick={() => onSelectType("wireless")}
           className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group"
         >
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -214,6 +222,203 @@ const CameraTypeModal = ({
     </DialogContent>
   </Dialog>
 );
+
+/* ─── Wired Camera Form Modal ─────────────────── */
+const WiredCameraFormModal = ({
+  open,
+  onClose,
+  cameraNumber,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cameraNumber: number;
+  onSave: (camera: CameraItem) => void;
+}) => {
+  const [name] = useState(`camera${cameraNumber}`);
+  const [tag, setTag] = useState("");
+  const [usbSource, setUsbSource] = useState("");
+
+  const handleSave = () => {
+    onSave({
+      id: `cam-${Date.now()}`,
+      name,
+      type: "wired",
+      tag,
+      usbSource,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display flex items-center gap-2">
+            <Cable className="w-5 h-5 text-primary" />
+            Add Wired Camera
+          </DialogTitle>
+          <DialogDescription className="font-body">
+            Configure your wired camera connection
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Camera Name</Label>
+            <Input value={name} disabled className="font-body bg-muted/50" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Tag</Label>
+            <Input
+              placeholder="e.g. Front entrance, Field view"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              className="font-body"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">USB Source</Label>
+            <Select value={usbSource} onValueChange={setUsbSource}>
+              <SelectTrigger className="font-body">
+                <SelectValue placeholder="Select USB source" />
+              </SelectTrigger>
+              <SelectContent>
+                {USB_SOURCES.map((s) => (
+                  <SelectItem key={s} value={s} className="font-body">
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} className="font-body">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} className="font-body bg-primary text-primary-foreground hover:bg-primary/90">
+            Save Camera
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* ─── Wireless Camera Form Modal ──────────────── */
+const WirelessCameraFormModal = ({
+  open,
+  onClose,
+  cameraNumber,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cameraNumber: number;
+  onSave: (camera: CameraItem) => void;
+}) => {
+  const [name] = useState(`camera${cameraNumber}`);
+  const [tag, setTag] = useState("");
+  const [ip, setIp] = useState("");
+  const [port, setPort] = useState("");
+  const [username, setUsername] = useState("");
+  const [protocol, setProtocol] = useState("");
+
+  const handleSave = () => {
+    onSave({
+      id: `cam-${Date.now()}`,
+      name,
+      type: "wireless",
+      tag,
+      ip,
+      port,
+      username,
+      protocol,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display flex items-center gap-2">
+            <Wifi className="w-5 h-5 text-primary" />
+            Add Wireless Camera
+          </DialogTitle>
+          <DialogDescription className="font-body">
+            Configure your wireless camera connection
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Camera Name</Label>
+            <Input value={name} disabled className="font-body bg-muted/50" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Tag</Label>
+            <Input
+              placeholder="e.g. Canopy cam, Night vision"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              className="font-body"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-body">IP Address</Label>
+              <Input
+                placeholder="192.168.1.100"
+                value={ip}
+                onChange={(e) => setIp(e.target.value)}
+                className="font-body"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-body">Port</Label>
+              <Input
+                placeholder="554"
+                value={port}
+                onChange={(e) => setPort(e.target.value)}
+                className="font-body"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Username</Label>
+            <Input
+              placeholder="admin"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="font-body"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-body">Protocol</Label>
+            <Select value={protocol} onValueChange={setProtocol}>
+              <SelectTrigger className="font-body">
+                <SelectValue placeholder="Select protocol" />
+              </SelectTrigger>
+              <SelectContent>
+                {["RTSP", "RTMP", "HLS", "ONVIF", "HTTP"].map((p) => (
+                  <SelectItem key={p} value={p} className="font-body">
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} className="font-body">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} className="font-body bg-primary text-primary-foreground hover:bg-primary/90">
+            Save Camera
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 /* ─── Editable Field ──────────────────────────── */
 const EditableField = ({
@@ -420,6 +625,8 @@ const CreateDashboard = () => {
   const [step, setStep] = useState<Step>("form");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showCameraTypeModal, setShowCameraTypeModal] = useState(false);
+  const [showWiredForm, setShowWiredForm] = useState(false);
+  const [showWirelessForm, setShowWirelessForm] = useState(false);
   const [showMapAnimation, setShowMapAnimation] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -467,17 +674,22 @@ const CreateDashboard = () => {
     setStep("setup");
   };
 
-  const handleAddCamera = (type: "wired" | "wireless") => {
-    const id = `cam-${Date.now()}`;
-    setCameras((prev) => [
-      ...prev,
-      { id, name: `Camera ${prev.length + 1}`, type },
-    ]);
+  const handleCameraTypeSelect = (type: "wired" | "wireless") => {
     setShowCameraTypeModal(false);
+    if (type === "wired") {
+      setShowWiredForm(true);
+    } else {
+      setShowWirelessForm(true);
+    }
+  };
+
+  const handleAddCamera = (camera: CameraItem) => {
+    setCameras((prev) => [...prev, camera]);
+    setShowWiredForm(false);
+    setShowWirelessForm(false);
   };
 
   const handleSave = () => {
-    // Mock save — would persist to DB
     navigate("/home");
   };
 
@@ -635,32 +847,32 @@ const CreateDashboard = () => {
               <h2 className="text-xl font-display font-bold text-foreground mb-1">
                 Add Cameras
               </h2>
-              <p className="text-sm text-muted-foreground font-body mb-6">
+              <p className="text-sm text-muted-foreground font-body mb-4">
                 Add cameras to your dashboard for monitoring
               </p>
 
-              {/* Add camera button */}
+              {/* Add camera button — reduced height */}
               <button
                 onClick={() => setShowCameraTypeModal(true)}
-                className="w-full aspect-[3/1.5] border-2 border-dashed border-primary/50 rounded-xl bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all flex flex-col items-center justify-center gap-3 group mb-6"
+                className="w-full h-28 border-2 border-dashed border-primary/50 rounded-xl bg-primary/5 hover:bg-primary/10 hover:border-primary transition-all flex flex-col items-center justify-center gap-2 group mb-4"
               >
-                <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center group-hover:bg-primary/25 transition-colors">
-                  <Plus className="w-7 h-7 text-primary" />
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center group-hover:bg-primary/25 transition-colors">
+                  <Plus className="w-6 h-6 text-primary" />
                 </div>
                 <span className="text-sm font-body font-semibold text-primary">
                   Add Camera
                 </span>
               </button>
 
-              {/* Camera list */}
-              <div className="space-y-3">
+              {/* Camera list — shifted up with less margin */}
+              <div className="space-y-2">
                 {cameras.map((cam) => (
                   <Card
                     key={cam.id}
-                    className="p-4 bg-card border-border flex items-center gap-4"
+                    className="p-3 bg-card border-border flex items-center gap-3"
                   >
-                    <div className="w-20 h-14 bg-muted rounded-md flex items-center justify-center shrink-0">
-                      <Camera className="w-5 h-5 text-muted-foreground opacity-50" />
+                    <div className="w-16 h-11 bg-muted rounded-md flex items-center justify-center shrink-0">
+                      <Camera className="w-4 h-4 text-muted-foreground opacity-50" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-body font-semibold text-foreground truncate">
@@ -675,25 +887,30 @@ const CreateDashboard = () => {
                         <span className="text-xs text-muted-foreground font-body capitalize">
                           {cam.type}
                         </span>
+                        {cam.tag && (
+                          <Badge variant="outline" className="text-[10px] font-body ml-1">
+                            {cam.tag}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={() =>
                         setCameras((prev) => prev.filter((c) => c.id !== cam.id))
                       }
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </Button>
                   </Card>
                 ))}
               </div>
             </div>
 
-            {/* Right: Dashboard Info (editable) */}
-            <div className="lg:w-[400px] xl:w-[440px] shrink-0 p-6 md:p-8 bg-card/50">
+            {/* Right: Dashboard Info — wider panel */}
+            <div className="lg:w-[480px] xl:w-[520px] shrink-0 p-6 md:p-8 bg-card/50">
               <h2 className="text-xl font-display font-bold text-foreground mb-1">
                 Dashboard Info
               </h2>
@@ -724,7 +941,6 @@ const CreateDashboard = () => {
                   onSave={(v) => updateForm({ place: v })}
                 />
 
-                {/* Location pin */}
                 <div className="space-y-0.5">
                   <Label className="text-xs text-muted-foreground font-body">
                     Coordinates
@@ -734,7 +950,6 @@ const CreateDashboard = () => {
                   </p>
                 </div>
 
-                {/* Shared with */}
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground font-body">
                     Shared With
@@ -754,7 +969,6 @@ const CreateDashboard = () => {
                   </div>
                 </div>
 
-                {/* Tags */}
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground font-body">
                     Tags
@@ -778,7 +992,6 @@ const CreateDashboard = () => {
                   </div>
                 </div>
 
-                {/* Cameras count */}
                 <div className="space-y-0.5">
                   <Label className="text-xs text-muted-foreground font-body">
                     Cameras
@@ -788,7 +1001,6 @@ const CreateDashboard = () => {
                   </p>
                 </div>
 
-                {/* Created info */}
                 <div className="space-y-0.5">
                   <Label className="text-xs text-muted-foreground font-body">
                     Created By
@@ -825,7 +1037,23 @@ const CreateDashboard = () => {
       <CameraTypeModal
         open={showCameraTypeModal}
         onClose={() => setShowCameraTypeModal(false)}
-        onSelect={handleAddCamera}
+        onSelectType={handleCameraTypeSelect}
+      />
+
+      {/* Wired Camera Form */}
+      <WiredCameraFormModal
+        open={showWiredForm}
+        onClose={() => setShowWiredForm(false)}
+        cameraNumber={cameras.length + 1}
+        onSave={handleAddCamera}
+      />
+
+      {/* Wireless Camera Form */}
+      <WirelessCameraFormModal
+        open={showWirelessForm}
+        onClose={() => setShowWirelessForm(false)}
+        cameraNumber={cameras.length + 1}
+        onSave={handleAddCamera}
       />
 
       {/* Cancel Confirmation */}
