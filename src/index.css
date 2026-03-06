@@ -24,8 +24,8 @@
     --muted: 140 14% 91%;
     --muted-foreground: 150 12% 42%;
 
-    --accent: 45 85% 55%;
-    --accent-foreground: 40 60% 12%;
+    --accent: 145 30% 85%;
+    --accent-foreground: 150 25% 15%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
@@ -68,8 +68,8 @@
     --muted: 152 18% 15%;
     --muted-foreground: 145 12% 55%;
 
-    --accent: 48 80% 58%;
-    --accent-foreground: 155 25% 7%;
+    --accent: 150 30% 22%;
+    --accent-foreground: 145 18% 85%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
@@ -87,7 +87,7 @@
     --sidebar-border: 150 14% 18%;
     --sidebar-ring: 148 55% 42%;
   }
-@layer base {
+
   * {
     @apply border-border;
   }
