@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import wildlifeHero from "@/assets/wildlife-hero.jpg";
 
 const countriesWithLocations: Record<string, string[]> = {
@@ -47,55 +48,50 @@ const Auth = () => {
     setIsLoading(true);
 
     if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
       setIsLoading(false);
       return;
     }
 
-    if (!isLogin) {
-      if (!firstName || !lastName) {
-        toast({
-          title: "Error",
-          description: "Please enter your first and last name",
-          variant: "destructive",
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        toast({ title: "Welcome back!", description: "You have successfully logged in." });
+        navigate("/home");
+      } else {
+        if (!firstName || !lastName) {
+          throw new Error("Please enter your first and last name");
+        }
+        if (password.length < 8) {
+          throw new Error("Password must be at least 8 characters long");
+        }
+        if (userType === "admin" && (!country || !location)) {
+          throw new Error("Please select country and location");
+        }
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/home`,
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              role: userType,
+              country: country || null,
+              location: location || null,
+            },
+          },
         });
-        setIsLoading(false);
-        return;
+        if (error) throw error;
+        toast({ title: "Account created!", description: "Welcome to WildGuard." });
+        navigate("/home");
       }
-      if (password.length < 8) {
-        toast({
-          title: "Error",
-          description: "Password must be at least 8 characters long",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-      if (userType === "admin" && (!country || !location)) {
-        toast({
-          title: "Error",
-          description: "Please select country and location",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    setTimeout(() => {
-      toast({
-        title: isLogin ? `Welcome back${userType === "admin" ? " Admin" : ""}!` : "Account created!",
-        description: isLogin
-          ? "You have successfully logged in."
-          : "Your account has been created successfully.",
-      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message ?? "Something went wrong", variant: "destructive" });
+    } finally {
       setIsLoading(false);
-      navigate("/home");
-    }, 1500);
+    }
   };
 
   const toggleMode = () => {

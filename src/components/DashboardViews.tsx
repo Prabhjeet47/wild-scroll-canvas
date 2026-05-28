@@ -1,19 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera, Map, FileText, Moon, MoreHorizontal, Plus,
   LayoutList, LayoutGrid, Square, MapPin, Clock, UserCircle, ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { MOCK_DASHBOARDS, type Dashboard } from "@/data/mockDashboards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ScrollReveal from "@/components/ScrollReveal";
+import { supabase } from "@/integrations/supabase/client";
+import accessService from "@/services/accessService";
+import { useToast } from "@/hooks/use-toast";
 
 type ViewMode = "vertical" | "grid" | "single";
 
-const statusColors: Record<Dashboard["status"], string> = {
+interface DashboardItem {
+  id: string;
+  name: string;
+  slug: string;
+  coordinates: string | null;
+  camera_count: number;
+  status: string;
+  last_log: string | null;
+  created_at: string;
+}
+
+const statusColors: Record<string, string> = {
   active: "bg-primary/20 text-primary border-primary/30",
   sleeping: "bg-accent/20 text-accent-foreground border-accent/30",
   offline: "bg-destructive/20 text-destructive border-destructive/30",
@@ -41,29 +54,15 @@ const LogsPreview = ({ log, compact = false }: { log: string; compact?: boolean 
   </div>
 );
 
-/* ─── Sleep/Wake Status Indicator ─────────────── */
-const SleepWakeIndicator = ({ status }: { status: Dashboard["status"] }) => {
+const SleepWakeIndicator = ({ status }: { status: string }) => {
   if (status === "sleeping") {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-body">
-        <div className="relative flex items-center">
-          <Moon className="w-3.5 h-3.5 text-accent-foreground" />
-          {/* Zzz animation */}
-          <span className="absolute -top-2 -right-3 text-[8px] font-bold text-accent-foreground animate-pulse select-none">
-            z
-          </span>
-          <span className="absolute -top-3.5 -right-1.5 text-[7px] font-bold text-accent-foreground/70 animate-pulse select-none" style={{ animationDelay: "0.3s" }}>
-            z
-          </span>
-          <span className="absolute -top-4.5 -right-0 text-[6px] font-bold text-accent-foreground/40 animate-pulse select-none" style={{ animationDelay: "0.6s" }}>
-            z
-          </span>
-        </div>
-        <span className="ml-1">Sleeping</span>
+        <Moon className="w-3.5 h-3.5 text-accent-foreground" />
+        <span>Sleeping</span>
       </div>
     );
   }
-
   return (
     <span className="text-xs text-muted-foreground font-body">
       {status === "active" ? "Awake" : "Offline"}
@@ -71,22 +70,11 @@ const SleepWakeIndicator = ({ status }: { status: Dashboard["status"] }) => {
   );
 };
 
-/* ─── Clickable Dashboard Card Wrapper ────────── */
-const DashboardCardLink = ({
-  dashboard,
-  children,
-  className = "",
-}: {
-  dashboard: Dashboard;
-  children: React.ReactNode;
-  className?: string;
-}) => {
+const DashboardCardLink = ({ dashboard, children, className = "" }: { dashboard: DashboardItem; children: React.ReactNode; className?: string }) => {
   const navigate = useNavigate();
-  const slug = dashboard.name.toLowerCase().replace(/\s+/g, "-");
-
   return (
     <div
-      onClick={() => navigate(`/dashboard/${slug}`)}
+      onClick={() => navigate(`/dashboard/${dashboard.slug}`)}
       className={`cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] hover:border-primary/50 rounded-lg ${className}`}
     >
       {children}
@@ -94,8 +82,7 @@ const DashboardCardLink = ({
   );
 };
 
-/* ─── Vertical View ────────────────────────────── */
-const VerticalView = ({ dashboards }: { dashboards: Dashboard[] }) => (
+const VerticalView = ({ dashboards }: { dashboards: DashboardItem[] }) => (
   <div className="space-y-3">
     {dashboards.map((d, i) => (
       <ScrollReveal key={d.id} delay={i * 80}>
@@ -103,24 +90,19 @@ const VerticalView = ({ dashboards }: { dashboards: Dashboard[] }) => (
           <Card className="p-4 bg-card border-border transition-colors">
             <div className="flex items-center gap-2 mb-3">
               <h3 className="font-display font-bold text-foreground text-sm flex-1">{d.name}</h3>
-              <Badge variant="outline" className={`text-[10px] ${statusColors[d.status]}`}>
-                {d.status}
-              </Badge>
+              <Badge variant="outline" className={`text-[10px] ${statusColors[d.status] ?? ""}`}>{d.status}</Badge>
             </div>
-            {/* 4 items in a row, 2:1 aspect ratio, hover expand/shrink */}
-            <div className="grid grid-cols-4 gap-3 group/row">
-              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100">
-                <CameraPreview className="h-full w-full" />
-              </div>
-              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex flex-col gap-1 justify-center">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="aspect-[2/1]"><CameraPreview className="h-full w-full" /></div>
+              <div className="aspect-[2/1] flex flex-col gap-1 justify-center">
                 <MapPreview />
                 <span className="text-[10px] text-muted-foreground truncate">{d.coordinates}</span>
               </div>
-              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex flex-col gap-1 justify-center">
+              <div className="aspect-[2/1] flex flex-col gap-1 justify-center">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Latest Log</span>
-                <LogsPreview log={d.lastLog} />
+                <LogsPreview log={d.last_log ?? "No activity yet"} />
               </div>
-              <div className="aspect-[2/1] transition-all duration-300 group-hover/row:[&:not(:hover)]:scale-[0.96] group-hover/row:[&:not(:hover)]:opacity-80 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
+              <div className="aspect-[2/1] flex items-center justify-center">
                 <SleepWakeIndicator status={d.status} />
               </div>
             </div>
@@ -131,32 +113,22 @@ const VerticalView = ({ dashboards }: { dashboards: Dashboard[] }) => (
   </div>
 );
 
-/* ─── Grid View ────────────────────────────────── */
-const GridView = ({ dashboards }: { dashboards: Dashboard[] }) => (
+const GridView = ({ dashboards }: { dashboards: DashboardItem[] }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
     {dashboards.map((d, i) => (
       <ScrollReveal key={d.id} delay={i * 80}>
         <DashboardCardLink dashboard={d}>
-          <Card className="overflow-hidden bg-card border-border transition-colors group">
+          <Card className="overflow-hidden bg-card border-border">
             <CameraPreview className="aspect-[16/10]" />
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-display font-bold text-foreground text-sm truncate">{d.name}</h3>
-                <Badge variant="outline" className={`text-[10px] shrink-0 ml-2 ${statusColors[d.status]}`}>
-                  {d.status}
-                </Badge>
+                <Badge variant="outline" className={`text-[10px] shrink-0 ml-2 ${statusColors[d.status] ?? ""}`}>{d.status}</Badge>
               </div>
-              {/* 3 equal-width items with hover expand/shrink */}
-              <div className="grid grid-cols-3 gap-2 border-t border-border pt-2 group/strip">
-                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
-                  <MapPreview compact />
-                </div>
-                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center min-w-0">
-                  <LogsPreview log={d.lastLog} compact />
-                </div>
-                <div className="transition-all duration-300 group-hover/strip:[&:not(:hover)]:scale-[0.95] group-hover/strip:[&:not(:hover)]:opacity-75 hover:!scale-105 hover:!opacity-100 flex items-center justify-center">
-                  <SleepWakeIndicator status={d.status} />
-                </div>
+              <div className="grid grid-cols-3 gap-2 border-t border-border pt-2">
+                <div className="flex items-center justify-center"><MapPreview compact /></div>
+                <div className="flex items-center min-w-0"><LogsPreview log={d.last_log ?? "No activity"} compact /></div>
+                <div className="flex items-center justify-center"><SleepWakeIndicator status={d.status} /></div>
               </div>
             </div>
           </Card>
@@ -166,26 +138,20 @@ const GridView = ({ dashboards }: { dashboards: Dashboard[] }) => (
   </div>
 );
 
-/* ─── Single View ────────────────────────────────── */
-const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
+const SingleView = ({ dashboards }: { dashboards: DashboardItem[] }) => {
   const [selected, setSelected] = useState(0);
   const navigate = useNavigate();
   const d = dashboards[selected];
   if (!d) return null;
-  const slug = d.name.toLowerCase().replace(/\s+/g, "-");
-
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      {/* Dashboard list sidebar */}
       <div className="lg:w-56 shrink-0 space-y-1">
         {dashboards.map((item, i) => (
           <button
             key={item.id}
             onClick={() => setSelected(i)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm font-body transition-colors flex items-center gap-2 ${
-              i === selected
-                ? "bg-primary/15 text-primary border border-primary/30"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              i === selected ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <span className="truncate flex-1">{item.name}</span>
@@ -193,52 +159,27 @@ const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
           </button>
         ))}
       </div>
-
-      {/* Detail */}
       <Card
-        className="flex-1 p-0 overflow-hidden bg-card border-border cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] hover:border-primary/50"
-        onClick={() => navigate(`/dashboard/${slug}`)}
+        className="flex-1 p-0 overflow-hidden bg-card border-border cursor-pointer hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)] hover:border-primary/50"
+        onClick={() => navigate(`/dashboard/${d.slug}`)}
       >
         <div className="flex flex-col lg:flex-row">
           <CameraPreview className="aspect-video lg:aspect-auto lg:w-[60%]" />
           <div className="p-5 lg:w-[40%] space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-display font-bold text-foreground text-lg">{d.name}</h3>
-                <Badge variant="outline" className={`text-[10px] ${statusColors[d.status]}`}>
-                  {d.status}
-                </Badge>
-              </div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-display font-bold text-foreground text-lg">{d.name}</h3>
+              <Badge variant="outline" className={`text-[10px] ${statusColors[d.status] ?? ""}`}>{d.status}</Badge>
             </div>
-
             <div className="space-y-3 text-sm font-body">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-muted-foreground">{d.coordinates}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Camera className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-muted-foreground">{d.cameraCount} cameras</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-muted-foreground">{d.lastLog}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-muted-foreground">Created {d.createdAt}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <UserCircle className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-muted-foreground">{d.createdBy}</span>
-              </div>
+              <div className="flex items-start gap-2"><MapPin className="w-4 h-4 text-muted-foreground mt-0.5" /><span className="text-muted-foreground">{d.coordinates ?? "—"}</span></div>
+              <div className="flex items-start gap-2"><Camera className="w-4 h-4 text-muted-foreground mt-0.5" /><span className="text-muted-foreground">{d.camera_count} cameras</span></div>
+              <div className="flex items-start gap-2"><FileText className="w-4 h-4 text-muted-foreground mt-0.5" /><span className="text-muted-foreground">{d.last_log ?? "No activity"}</span></div>
+              <div className="flex items-start gap-2"><Clock className="w-4 h-4 text-muted-foreground mt-0.5" /><span className="text-muted-foreground">Created {new Date(d.created_at).toLocaleDateString()}</span></div>
             </div>
-
             <div className="flex gap-2 pt-2 border-t border-border">
               <SleepWakeIndicator status={d.status} />
               <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground">
-                <MoreHorizontal className="w-3.5 h-3.5" />
-                More
+                <MoreHorizontal className="w-3.5 h-3.5" />More
               </Button>
             </div>
           </div>
@@ -248,14 +189,59 @@ const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
   );
 };
 
-/* ─── Main Component ────────────────────────────────── */
 const DashboardViews = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [dashboards, setDashboards] = useState<DashboardItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingRequest, setPendingRequest] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const isAdmin = user?.role === "admin";
 
-  const dashboards = isAdmin ? MOCK_DASHBOARDS : [];
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase.from("dashboards").select("*").order("created_at", { ascending: false });
+      setDashboards((data ?? []) as DashboardItem[]);
+      setLoading(false);
+    })();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || isAdmin) return;
+    (async () => {
+      const { data } = await accessService.myPendingRequest(user.id);
+      setPendingRequest(!!data);
+    })();
+
+    // Refresh dashboards when access changes
+    const ch = supabase
+      .channel(`access:${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dashboard_access", filter: `user_id=eq.${user.id}` }, async () => {
+        const { data } = await supabase.from("dashboards").select("*").order("created_at", { ascending: false });
+        setDashboards((data ?? []) as DashboardItem[]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user, isAdmin]);
+
+  const handleContactAdmin = async () => {
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      const { error } = await accessService.submitRequest(user.id);
+      if (error) throw error;
+      setPendingRequest(true);
+      toast({ title: "Request sent", description: "Admins have been notified. You'll get a notification when access is granted." });
+    } catch (e: any) {
+      toast({ title: "Could not send request", description: e.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const viewOptions: { mode: ViewMode; icon: typeof LayoutList; label: string }[] = [
     { mode: "vertical", icon: LayoutList, label: "List" },
@@ -265,16 +251,13 @@ const DashboardViews = () => {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] pt-20 pb-10 px-4 md:px-8 max-w-[1600px] mx-auto">
-      {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
             {isAdmin ? "All Dashboards" : "My Dashboards"}
           </h1>
           <p className="text-sm text-muted-foreground font-body mt-1">
-            {isAdmin
-              ? `${MOCK_DASHBOARDS.length} dashboards active`
-              : "Dashboards assigned to you"}
+            {isAdmin ? `${dashboards.length} dashboards` : "Dashboards assigned to you"}
           </p>
         </div>
 
@@ -285,9 +268,7 @@ const DashboardViews = () => {
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-body font-medium transition-all ${
-                  viewMode === mode
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  viewMode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -302,30 +283,41 @@ const DashboardViews = () => {
               size="sm"
               className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-body"
             >
-              <Plus className="w-4 h-4" />
-              Create Dashboard
+              <Plus className="w-4 h-4" />Create Dashboard
             </Button>
           )}
         </div>
       </div>
 
-      {/* Content */}
-      {dashboards.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-muted-foreground text-center py-10">Loading…</p>
+      ) : dashboards.length === 0 ? (
         <ScrollReveal>
           <Card className="p-10 text-center bg-card border-primary/20 border-dashed">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Camera className="w-8 h-8 text-primary" />
             </div>
             <h3 className="font-display font-bold text-foreground text-lg mb-2">
-              No Dashboard Access
+              {isAdmin ? "No Dashboards Yet" : "No Dashboard Access"}
             </h3>
             <p className="text-muted-foreground font-body text-sm max-w-md mx-auto mb-4">
-              You currently don't have access to any dashboards. Please contact your
-              administrator to get dashboard access assigned to your account.
+              {isAdmin
+                ? "Get started by creating your first dashboard."
+                : pendingRequest
+                ? "Your access request is pending. An administrator will review it shortly."
+                : "You currently don't have access to any dashboards. Send a request to your administrator."}
             </p>
-            <Button variant="outline" size="sm" className="font-body">
-              Contact Admin
-            </Button>
+            {!isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-body"
+                disabled={submitting || pendingRequest}
+                onClick={handleContactAdmin}
+              >
+                {pendingRequest ? "Request Pending" : submitting ? "Sending…" : "Contact Admin"}
+              </Button>
+            )}
           </Card>
         </ScrollReveal>
       ) : (

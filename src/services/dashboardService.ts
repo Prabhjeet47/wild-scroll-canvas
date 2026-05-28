@@ -1,21 +1,26 @@
-import api from "@/lib/axios";
-import type { Dashboard } from "@/data/mockDashboards";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface DashboardRow {
+  id: string;
+  name: string;
+  slug: string;
+  coordinates: string | null;
+  country: string | null;
+  location: string | null;
+  camera_count: number;
+  status: string;
+  last_log: string | null;
+  created_at: string;
+  owner_id: string | null;
+}
 
 const dashboardService = {
-  getAll: () =>
-    api.get<Dashboard[]>("/dashboards"),
+  listAll: () => supabase.from("dashboards").select("*").order("created_at", { ascending: false }),
 
-  getById: (id: string) =>
-    api.get<Dashboard>(`/dashboards/${id}`),
+  listMine: () => supabase.from("dashboards").select("*").order("created_at", { ascending: false }),
 
-  create: (data: Omit<Dashboard, "id">) =>
-    api.post<Dashboard>("/dashboards", data),
-
-  update: (id: string, data: Partial<Dashboard>) =>
-    api.put<Dashboard>(`/dashboards/${id}`, data),
-
-  delete: (id: string) =>
-    api.delete(`/dashboards/${id}`),
+  bySlug: (slug: string) =>
+    supabase.from("dashboards").select("*").eq("slug", slug).maybeSingle(),
 };
 
 export default dashboardService;
