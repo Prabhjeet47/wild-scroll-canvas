@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import NotificationBell from "@/components/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,8 @@ const GlobalHeader = () => {
 
       {/* Right side: theme toggle + user */}
       <div className="flex items-center gap-2">
+        {isLoggedIn && <NotificationBell />}
+
         {/* Theme toggle */}
         <Button
           variant="ghost"
@@ -84,7 +87,7 @@ const GlobalHeader = () => {
                   <Leaf className="w-4 h-4 mr-2" />
                   Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {}} className="cursor-pointer font-body">
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer font-body">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
                 </DropdownMenuItem>
