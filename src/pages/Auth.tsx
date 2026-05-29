@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Leaf, Mail, Lock, User, ArrowLeft, MapPin, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,13 @@ const Auth = () => {
   const [location, setLocation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const mode = (routerLocation.state as { mode?: string } | null)?.mode;
+    if (mode === "signup") setIsLogin(false);
+  }, [routerLocation.state]);
 
   const handleGoogleAuth = () => {
     toast({

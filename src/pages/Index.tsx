@@ -102,7 +102,7 @@ const Index = () => {
           <ScrollReveal delay={300}>
             <Button
               size="lg"
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/auth", { state: { mode: "signup" } })}
               className="bg-primary text-primary-foreground hover:bg-primary/90 font-body text-lg px-10 py-6 rounded-full shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-105"
             >
               Get Started
