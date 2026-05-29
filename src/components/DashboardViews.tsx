@@ -5,11 +5,17 @@ import {
   LayoutList, LayoutGrid, Square, MapPin, Clock, UserCircle, ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccess } from "@/contexts/AccessContext";
 import { MOCK_DASHBOARDS, type Dashboard } from "@/data/mockDashboards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ScrollReveal from "@/components/ScrollReveal";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 type ViewMode = "vertical" | "grid" | "single";
 
