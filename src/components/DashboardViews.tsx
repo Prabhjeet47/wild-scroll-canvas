@@ -257,17 +257,37 @@ const SingleView = ({ dashboards }: { dashboards: Dashboard[] }) => {
 /* ─── Main Component ────────────────────────────────── */
 const DashboardViews = () => {
   const { user } = useAuth();
+  const { createRequest, getUserDashboards, requests } = useAccess();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [contactOpen, setContactOpen] = useState(false);
+  const [message, setMessage] = useState("");
   const isAdmin = user?.role === "admin";
 
-  const dashboards = isAdmin ? MOCK_DASHBOARDS : [];
+  const userDashboards = user ? getUserDashboards(user.id) : [];
+  const dashboards = isAdmin ? MOCK_DASHBOARDS : userDashboards;
+
+  const pendingRequest = user
+    ? requests.find((r) => r.userId === user.id && r.status === "pending")
+    : undefined;
 
   const viewOptions: { mode: ViewMode; icon: typeof LayoutList; label: string }[] = [
     { mode: "vertical", icon: LayoutList, label: "List" },
     { mode: "grid", icon: LayoutGrid, label: "Grid" },
     { mode: "single", icon: Square, label: "Single" },
   ];
+
+  const handleSendRequest = () => {
+    if (!user) return;
+    if (!message.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+    createRequest({ id: user.id, name: user.name, email: user.email }, message.trim());
+    toast.success("Request sent to admin");
+    setMessage("");
+    setContactOpen(false);
+  };
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] pt-20 pb-10 px-4 md:px-8 max-w-[1600px] mx-auto">
@@ -280,7 +300,7 @@ const DashboardViews = () => {
           <p className="text-sm text-muted-foreground font-body mt-1">
             {isAdmin
               ? `${MOCK_DASHBOARDS.length} dashboards active`
-              : "Dashboards assigned to you"}
+              : `${userDashboards.length} dashboard(s) assigned to you`}
           </p>
         </div>
 
@@ -329,9 +349,20 @@ const DashboardViews = () => {
               You currently don't have access to any dashboards. Please contact your
               administrator to get dashboard access assigned to your account.
             </p>
-            <Button variant="outline" size="sm" className="font-body">
-              Contact Admin
-            </Button>
+            {pendingRequest ? (
+              <Badge variant="outline" className="bg-accent/20 text-accent-foreground border-accent/30">
+                Request pending admin approval
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-body"
+                onClick={() => setContactOpen(true)}
+              >
+                Contact Admin
+              </Button>
+            )}
           </Card>
         </ScrollReveal>
       ) : (
@@ -341,6 +372,27 @@ const DashboardViews = () => {
           {viewMode === "single" && <SingleView dashboards={dashboards} />}
         </>
       )}
+
+      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Dashboard Access</DialogTitle>
+            <DialogDescription>
+              Send a request to the administrator describing the access you need.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Hi, I'd like access to the wildlife dashboards because..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendRequest}>Send Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
